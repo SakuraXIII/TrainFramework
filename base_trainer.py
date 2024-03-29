@@ -238,7 +238,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
 
     def compute_cost(self, *forward_inputs):
         forward_inputs = [input.to(self.device) for input in forward_inputs if isinstance(input, torch.Tensor)]
-        flops, params = clever_format(profile(self.model, inputs=forward_inputs), "%.3f")
+        flops, params = clever_format(profile(self.model, inputs=forward_inputs, verbose=False), "%.3f")
         print('FLOPs = ' + flops)
         print('Params = ' + params)
 
