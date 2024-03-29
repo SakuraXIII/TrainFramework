@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Union
 
 import torch
+from thop import clever_format, profile
 from torch import nn
 from tqdm import tqdm
 
@@ -234,6 +235,12 @@ class BaseTrainer(TrainerHook, TrainerLogger):
             raise ValueError("logger_dir is not define")
         with open(os.path.join(self.log_dir, 'parameters.json'), 'w') as f:
             json.dump(params, f)
+
+    def compute_cost(self, *forward_inputs):
+        forward_inputs = [input.to(self.device) for input in forward_inputs if isinstance(input, torch.Tensor)]
+        flops, params = clever_format(profile(self.model, inputs=forward_inputs), "%.3f")
+        print('FLOPs = ' + flops)
+        print('Params = ' + params)
 
     def test(self, test_loader, epochs=1):
         self.test_loader = test_loader
