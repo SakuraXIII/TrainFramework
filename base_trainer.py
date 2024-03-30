@@ -14,7 +14,7 @@ from thop import clever_format, profile
 from torch import nn
 from tqdm import tqdm
 
-from TrainFramwork.util import plot_log
+from util import plot_log
 
 # 日志使用方法：https://zhuanlan.zhihu.com/p/166671955
 logging.basicConfig(
