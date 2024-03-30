@@ -19,8 +19,8 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import ToTensor
 
-from utils.config import BaseConfig
-from utils.datasets import ImgDataset
+from config import BaseConfig
+from TrainFramwork.datasets import ImgDataset
 
 
 class Bcolors:

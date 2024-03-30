@@ -39,7 +39,7 @@ class VOC2012Detection(Dataset):
     def __init__(self, root, transform=None, target_transform=None, image_set: str = "train"):
         self.root = Path(root, "VOCdevkit", "VOC2012")
         self.img_root = Path(self.root, "JPEGImages")
-        self.annotations = Path(self.root, "Annotations")
+        self.annotations = Path(self.root, "Annotations").iterdir()
 
         # read train.txt or val.txt file
         txt_path = Path(self.root, "ImageSets", "Main", image_set + '.txt')
