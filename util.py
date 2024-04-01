@@ -20,7 +20,7 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import ToTensor
 
 from config import BaseConfig
-from datasets import ImgDataset
+from .datasets import ImgDataset
 
 
 class Bcolors:
