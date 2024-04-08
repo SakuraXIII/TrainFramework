@@ -111,14 +111,14 @@ def plot_log(
     Args:
         path: 保存的图像路径 为空则直接显示，为目录路径则以 :attr:`title` 为图像名
         title:  图像的标题（也为文件名）为空则默认 graph.png
-        x: x轴坐标值，为空则默认从0开始
-        y: y轴坐标值，给定了则只画一条线
+        x: x轴坐标值，为空则默认从0开始: (start, end)，不从 0 开始则要传参指定
+        y: y轴坐标值，给定了则只画一条线: (start, end)，不从 0 开始则要传参指定
         xlabel: 横坐标标题
         ylabel: 纵坐标标题
-        x_ticks: 坐标刻度显示内容
-        y_ticks: 坐标刻度显示内容
-        x_range: 坐标轴数据范围
-        y_range: 坐标轴数据范围
+        x_ticks: 坐标刻度间隔: (start, end, step)
+        y_ticks: 坐标刻度间隔: (start, end, step)
+        x_range: 坐标轴显示数据范围: (start, end)，基于 x 给定的数据范围，一般不用
+        y_range: 坐标轴显示数据范围: (start, end)，基于 y 给定的数据范围，一般不用
         linestyles: 每条数据线的样式
         colors: 每条数据线的颜色
         markers: 每条数据线节点的样式
