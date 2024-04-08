@@ -3,9 +3,11 @@
 # @Time    : 2024/3/12 23:33
 # @Author  : sy
 # @File    : BaseTrainer.py
+import copy
 import json
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -231,14 +233,20 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         self.model.load_state_dict(ckpt['state_dict'], True)
 
     def save_parameters(self, params):
+        if not isinstance(params, dict):
+            raise ValueError("params must be a dict")
         if not self.log_dir:
             raise ValueError("logger_dir is not define")
+        params.update({'datetime': datetime.now().strftime('%Y/%m/%d %H:%M:%S')})
         with open(os.path.join(self.log_dir, 'parameters.json'), 'w') as f:
             json.dump(params, f)
 
+    @torch.no_grad()
     def compute_cost(self, *forward_inputs):
+        net = copy.deepcopy(self.model)
         forward_inputs = [input.to(self.device) for input in forward_inputs if isinstance(input, torch.Tensor)]
-        flops, params = clever_format(profile(self.model, inputs=forward_inputs, verbose=False), "%.3f")
+        # profile 会向模型中添加额外的参数，因此需要使用 copy.deepcopy，避免最后保存模型时有不必要的参数
+        flops, params = clever_format(profile(net, inputs=forward_inputs, verbose=False), "%.3f")
         print('FLOPs = ' + flops)
         print('Params = ' + params)
 
