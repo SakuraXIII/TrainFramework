@@ -126,7 +126,7 @@ class TrainerLogger:
         if not self.log_dir:
             raise ValueError('logger_dir is not define')
         if plot_key is not None:
-            kwargs.update({plot_key: self._log_data[plot_key]})
+            kwargs.update({plot_key: self.get_data(plot_key)})
         plot_log(Path(self.log_dir, file_name), *args, **kwargs)
 
 
@@ -183,7 +183,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
                     (total - n) / rate) if rate and total else 0)
 
             if isinstance(train_batch, (tuple, list)):
-                train_batch = [train_batch.to(self.device) for train_batch in train_batch if isinstance(train_batch, torch.Tensor)]
+                train_batch = [item.to(self.device) for item in train_batch if isinstance(item, torch.Tensor)]
             else:
                 train_batch = train_batch.to(self.device)
             self.before_train_one_step()
@@ -201,7 +201,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
             if val_idx > len(self.val_loader) * 0.1:
                 return
             if isinstance(val_batch, (tuple, list)):
-                val_batch = [val_batch.to(self.device) for val_batch in val_batch if isinstance(val_batch, torch.Tensor)]
+                val_batch = [item.to(self.device) for item in val_batch if isinstance(item, torch.Tensor)]
             else:
                 val_batch = val_batch.to(self.device)
             self.before_val_one_step()
@@ -217,7 +217,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         self.model.eval()
         for test_idx, test_batch in enumerate(self.test_loader):
             if isinstance(test_batch, (tuple, list)):
-                test_batch = [test_batch.to(self.device) for val_batch in test_batch if isinstance(test_batch, torch.Tensor)]
+                test_batch = [item.to(self.device) for item in test_batch if isinstance(item, torch.Tensor)]
             else:
                 test_batch = test_batch.to(self.device)
             self.before_test_one_step()
@@ -230,7 +230,9 @@ class BaseTrainer(TrainerHook, TrainerLogger):
 
     def load_ckpt(self, ckpt):
         ckpt = torch.load(ckpt, map_location=self.device)
-        self.model.load_state_dict(ckpt['state_dict'], True)
+        ckpt = ckpt['state_dict'] if 'state_dict' in ckpt else ckpt
+        ckpt = {k: v for k, v in ckpt.items() if not (('total_ops' in k) or ('total_params' in k))}
+        self.model.load_state_dict(ckpt, True)
 
     def save_parameters(self, params):
         if not isinstance(params, dict):
