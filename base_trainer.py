@@ -131,7 +131,7 @@ class TrainerLogger:
 
 
 class BaseTrainer(TrainerHook, TrainerLogger):
-    def __init__(self, model: nn.Module, logger_dir: Union[Path, str] = None):
+    def __init__(self, model: nn.Module, logger_dir: Union[Path, str] = None, resume_ckpt: Union[Path, str] = None):
         """小知识：super() 是按照 BaseTrainer.mro() 返回的顺序查找方法，
         顺序是：BaseTrainer -> TrainerHook -> TrainerLogger，即继承类从左至右的顺序
         如果查找到调用的方法名，就会直接执行这个类的这个方法，而**不管参数是否对应的上**
@@ -144,6 +144,9 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         self.model = model.to(self.device)
         self.val_check_interval = 1
         self.current_epoch = 0
+        if resume_ckpt is not None:
+            self.resume_ckpt = str(resume_ckpt)
+            self.load_resume_ckpt(resume_ckpt)
 
     def train(self, train_loader, val_loader, epochs=1):
         self.train_loader = train_loader
@@ -234,12 +237,17 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         ckpt = {k: v for k, v in ckpt.items() if not (('total_ops' in k) or ('total_params' in k))}
         self.model.load_state_dict(ckpt, True)
 
+    def load_resume_ckpt(self, ckpt):
+        pass
+
     def save_parameters(self, params):
         if not isinstance(params, dict):
             raise ValueError("params must be a dict")
         if not self.log_dir:
             raise ValueError("logger_dir is not define")
         params.update({'datetime': datetime.now().strftime('%Y/%m/%d %H:%M:%S')})
+        if hasattr(self, 'resume_ckpt'):
+            params.update({'resume_ckpt': self.resume_ckpt})
         with open(os.path.join(self.log_dir, 'parameters.json'), 'w') as f:
             json.dump(params, f)
 
