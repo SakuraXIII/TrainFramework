@@ -126,8 +126,7 @@ def plot_log(
         file_format: 图像的格式
         **kwargs: 画图的数据
     """
-    # plt.rcParams['text.usetex'] = True
-    markers = markers if markers else ['.', ',', 'o', '*', 'x', 'v', '+']
+    markers = markers if markers else ['.', '*', 'o', '+', 'x', 'v', ',']
     linestyles = linestyles if linestyles else ['-', '--', '-.', ':']  # 只有这几种
     colors = colors if colors else ['#F27970', '#BB9727', '#14517C', '#32B897', '#05B9E2', '#8983BF', '#D8383A']
     plt.grid(True)
@@ -139,7 +138,7 @@ def plot_log(
             plt.plot(
                 range(len(value)) if x is None else x,
                 value,
-                label=f"${key}$",
+                label=rf"${key}$",  # 启用 Latex 渲染，文本中的空格会被忽略，解决方法："a bc" -> "a\\bc"，即空格用 "\\" 代替
                 linewidth=2,
                 linestyle=linestyles[index % len(linestyles)],
                 color=colors[index % len(colors)],

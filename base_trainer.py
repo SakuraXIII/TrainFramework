@@ -99,7 +99,10 @@ class TrainerLogger:
 
         if logger_dir is not None:
             (log_dir := Path(Path.cwd(), logger_dir)).mkdir(parents=True, exist_ok=True)
-            num = max((int(str(path).split("version_")[1]) for path in log_dir.iterdir() if path.is_dir()), default=-1)
+            num = max(
+                (int(name[1]) for path in log_dir.iterdir() if path.is_dir() and len((name := path.name.split("version_"))) > 1),
+                default=-1
+            )
             self.version = num + 1
             (log_dir / f"version_{self.version}").mkdir()
             self.log_dir = (log_dir / f"version_{self.version}").__str__()
