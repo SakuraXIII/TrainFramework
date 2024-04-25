@@ -99,7 +99,10 @@ class TrainerLogger:
 
         if logger_dir is not None:
             (log_dir := Path(Path.cwd(), logger_dir)).mkdir(parents=True, exist_ok=True)
-            num = max((int(str(path).split("version_")[1]) for path in log_dir.iterdir() if path.is_dir()), default=-1)
+            num = max(
+                (int(name[1]) for path in log_dir.iterdir() if path.is_dir() and len((name := path.name.split("version_"))) > 1),
+                default=-1
+            )
             self.version = num + 1
             (log_dir / f"version_{self.version}").mkdir()
             self.log_dir = (log_dir / f"version_{self.version}").__str__()
@@ -146,13 +149,14 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         self.current_epoch = 0
         if resume_ckpt is not None:
             self.resume_ckpt = str(resume_ckpt)
-            self.load_resume_ckpt(resume_ckpt)
 
     def train(self, train_loader, val_loader, epochs=1):
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.epochs = epochs
         self.before_train()
+        if hasattr(self, 'resume_ckpt'):
+            self.load_resume_ckpt(self.resume_ckpt)
         for epoch in range(self.current_epoch, self.epochs):
             self.before_epoch()
             # tqdm使用：https://blog.csdn.net/qq_41554005/article/details/117297861
@@ -231,13 +235,13 @@ class BaseTrainer(TrainerHook, TrainerLogger):
     def test_one_step(self, batch_idx, batch):
         raise NotImplementedError()
 
-    def load_ckpt(self, ckpt):
-        ckpt = torch.load(ckpt, map_location=self.device)
+    def load_ckpt(self, ckpt_path):
+        ckpt = torch.load(ckpt_path, map_location=self.device)
         ckpt = ckpt['state_dict'] if 'state_dict' in ckpt else ckpt
         ckpt = {k: v for k, v in ckpt.items() if not (('total_ops' in k) or ('total_params' in k))}
         self.model.load_state_dict(ckpt, True)
 
-    def load_resume_ckpt(self, ckpt):
+    def load_resume_ckpt(self, ckpt_path):
         pass
 
     def save_parameters(self, params):
