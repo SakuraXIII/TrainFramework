@@ -4,6 +4,7 @@ import json
 import math
 import os
 import random
+import time
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -98,14 +99,14 @@ def write_log(logdir, logdata):
 
 
 def plot_log(
-    path: Optional[Union[str, Path]] = None, title: str = "graph",
-    x: Optional[List[float]] = None, y: Optional[List[float]] = None,
-    xlabel: Optional[str] = None, ylabel: Optional[str] = None,
-    x_ticks: Optional[Tuple[float, float, float]] = None, y_ticks: Optional[Tuple[float, float, float]] = None,
-    x_range: Optional[Tuple[float, float]] = None, y_range: Optional[Tuple[float, float]] = None,
-    linestyles: Optional[List[str]] = None, colors: Optional[List[str]] = None, markers: Optional[List[str]] = None,
-    dpi=600, file_format='jpg',
-    **kwargs
+        path: Optional[Union[str, Path]] = None, title: str = "graph",
+        x: Optional[List[float]] = None, y: Optional[List[float]] = None,
+        xlabel: Optional[str] = None, ylabel: Optional[str] = None,
+        x_ticks: Optional[Tuple[float, float, float]] = None, y_ticks: Optional[Tuple[float, float, float]] = None,
+        x_range: Optional[Tuple[float, float]] = None, y_range: Optional[Tuple[float, float]] = None,
+        linestyles: Optional[List[str]] = None, colors: Optional[List[str]] = None, markers: Optional[List[str]] = None,
+        dpi=600, file_format='jpg',
+        **kwargs
 ):
     """绘制折线图到文件。
     Args:
@@ -350,6 +351,19 @@ def del_filelist(pardir_path, file_starts):
     for file in Path(pardir_path).iterdir():
         if file.is_file() and file.name.startswith(file_starts):
             file.unlink()
+
+
+class Timer:
+    def __init__(self):
+        self._start = 0
+        self._end = 0
+
+    def start(self):
+        self._start = time.time()
+
+    def end(self):
+        self._end = time.time()
+        return round((self._end - self._start) * 1000, 2)
 
 
 class AverageMeter:
