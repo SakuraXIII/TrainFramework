@@ -150,7 +150,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         if resume_ckpt is not None:
             self.resume_ckpt = str(resume_ckpt)
 
-    def train(self, train_loader, val_loader, epochs=1):
+    def train(self, train_loader, val_loader, epochs):
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.epochs = epochs
