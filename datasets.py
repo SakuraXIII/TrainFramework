@@ -183,3 +183,26 @@ class ImgDataset(Dataset):
             image = self.transform(image)
 
         return image
+
+
+class ImageNet(Dataset):
+    def __init__(self, root, transform=None, image_set: str = ""):
+        super().__init__()
+        self.data_dir = root
+        self.transform = transform
+        self.img_files = Path(root, "Data", "CLS-LOC")
+        self.img_idx = Path(root, "ImageSets", "CLS-LOC")
+        with open(self.img_idx / f"{image_set}.txt", 'r') as f:
+            self.img_path = f.readlines()
+
+    def __len__(self):
+        return len(self.img_path)
+
+    def __getitem__(self, idx):
+        img_path, label_id = self.img_path[idx].split(" ")
+        image = Image.open(self.img_files / img_path).convert("RGB")
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label_id
