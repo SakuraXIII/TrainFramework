@@ -6,6 +6,7 @@
 import collections
 import json
 import logging
+import random
 from pathlib import Path
 from typing import Any, Dict
 from xml.etree.ElementTree import Element as ET_Element
@@ -31,6 +32,23 @@ printf = logging.info
 
 
 # ------------------------------------------------ #
+
+
+class FakeDataset(Dataset):
+    """测试用的假数据集"""
+
+    def __init__(self, data_sizes=10000, num_class=1000):
+        # 生成随机数据
+        self.num_sizes = data_sizes
+        # 生成随机标签
+        self.num_class = num_class
+
+    def __len__(self):
+        return self.num_sizes
+
+    def __getitem__(self, index):
+        # 返回数据和标签
+        return torch.randn(3, 256, 256), random.randint(0, self.num_class)
 
 
 class VOC2012Detection(Dataset):
