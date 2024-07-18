@@ -229,35 +229,42 @@ class ImageNet(Dataset):
 
 
 class MSCOCO(Dataset):
-    def __init__(self, root, transform, img_list=None):
-        assert root[-1] == '/', "root to COCO dataset should end with \'/\', not {}.".format(
-            root)
-
-        if img_list:
-            self.image_paths = []
-            with open(img_list, 'r') as r:
-                lines = r.read().splitlines()
-                for line in lines:
-                    self.image_paths.append(root + line)
-        else:
-            self.image_paths = sorted(glob(root + "*.jpg"))
+    def __init__(self, root, annFile, transform=None):
+        self.root = root
+        from pycocotools.coco import COCO
+        self.coco = COCO(annFile)
+        self.ids = list(sorted(self.coco.imgs.keys()))
         self.transform = transform
 
     def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            object: image.
-        """
-        img_path = self.image_paths[index]
+        coco = self.coco
+        img_id = self.ids[index]
+        ann_ids = coco.getAnnIds(imgIds=img_id)
+        anns = coco.loadAnns(ann_ids)
+        img = coco.loadImgs(img_id)[0]
+        path = img['file_name']
 
-        img = Image.open(img_path).convert('RGB')
+        image = Image.open(os.path.join(self.root, path)).convert("RGB")
 
-        if self.transform is not None:
-            img = self.transform(img)
+        boxes = []
+        labels = []
+        for ann in anns:
+            xmin, ymin, width, height = ann['bbox']
+            boxes.append([xmin, ymin, xmin + width, ymin + height])
+            labels.append(ann['category_id'])
 
-        return img
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
+
+        target = {}
+        target["boxes"] = boxes
+        target["labels"] = labels
+        target["image_id"] = torch.tensor([img_id])
+
+        if self.transforms is not None:
+            image = self.transforms(image)
+
+        return image, target
 
     def __len__(self):
-        return len(self.image_paths)
+        return len(self.ids)
