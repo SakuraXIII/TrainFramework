@@ -190,7 +190,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
                     (total - n) / rate) if rate and total else 0)
 
             if isinstance(train_batch, (tuple, list)):
-                train_batch = [item.to(self.device) for item in train_batch if isinstance(item, torch.Tensor)]
+                train_batch = [item.to(self.device) if isinstance(item, torch.Tensor) else item for item in train_batch]
             else:
                 train_batch = train_batch.to(self.device)
             self.before_train_one_step()
