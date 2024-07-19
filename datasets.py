@@ -239,18 +239,22 @@ class MSCOCO(Dataset):
     def __getitem__(self, index):
         coco = self.coco
         img_id = self.ids[index]
+        # COCO 图像中的每个目标的标注值都是放在单独的一个 {} 中，通过 id 索引，而不是所有目标集中在一个 {} 中
         ann_ids = coco.getAnnIds(imgIds=img_id)
         anns = coco.loadAnns(ann_ids)
         img = coco.loadImgs(img_id)[0]
         path = img['file_name']
+
+        if len(anns) == 0:  # 无标注数据的图像
+            return None, None
 
         image = Image.open(Path(self.root, path)).convert("RGB")
 
         boxes = []
         labels = []
         for ann in anns:
-            xmin, ymin, width, height = ann['bbox']
-            boxes.append([xmin, ymin, xmin + width, ymin + height])
+            xmin, ymin, width, height = ann['bbox']  # COCO boxes 坐标格式为 xywh
+            boxes.append([xmin, ymin, xmin + width, ymin + height])  # torchvision.model 中 Faster-RCNN 接受 xyxy 格式
             labels.append(ann['category_id'])
 
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
@@ -259,7 +263,7 @@ class MSCOCO(Dataset):
         target = {}
         target["boxes"] = boxes
         target["labels"] = labels
-        target["image_id"] = torch.tensor([img_id])
+        target["image_id"] = img_id
 
         if self.transform is not None:
             image = self.transform(image)
@@ -268,3 +272,9 @@ class MSCOCO(Dataset):
 
     def __len__(self):
         return len(self.ids)
+
+    @staticmethod
+    def custom_collect_fn(batch):
+        """COCO 中存在无标注数据的图像，返回 None，这里过滤掉"""
+        batch = list(filter(lambda x: x[0] is not None, batch))
+        return tuple(zip(*(batch)))
