@@ -321,7 +321,7 @@ def print_model_params_(model):
 
 
 def get_dataloader(config: BaseConfig):
-    transform = transforms.Compose([transforms.CenterCrop(config.img_size), transforms.ToTensor()])
+    transform = transforms.Compose([transforms.RandomResizedCrop(config.img_size), transforms.ToTensor()])
     if config.name == 'cifar':
         trainset = CIFAR10(root=config.data_dir, train=True, transform=transform)
         train_size = int(0.8 * len(trainset))
@@ -330,6 +330,11 @@ def get_dataloader(config: BaseConfig):
     elif config.name == 'open':
         trainset = ImgDataset(config.data_dir, transform=transform, image_set='train_f')
         validset = ImgDataset(config.data_dir, transform=transform, image_set='validation')
+        train_size = int(0.1 * len(trainset))  # 10万 * 0.1
+        trainset, _ = random_split(trainset, [train_size, len(trainset) - train_size])
+    elif config.name == 'div':
+        trainset = ImgDataset(config.train_dir, transform=transform, image_set='DIV2K_train_HR')
+        validset = ImgDataset(config.test_dir, transform=transform, )
     else:
         raise ValueError('not found config')
 
