@@ -244,7 +244,7 @@ class MSCOCO(Dataset):
         img = coco.loadImgs(img_id)[0]
         path = img['file_name']
 
-        image = Image.open(os.path.join(self.root, path)).convert("RGB")
+        image = Image.open(Path(self.root, path)).convert("RGB")
 
         boxes = []
         labels = []
@@ -261,8 +261,8 @@ class MSCOCO(Dataset):
         target["labels"] = labels
         target["image_id"] = torch.tensor([img_id])
 
-        if self.transforms is not None:
-            image = self.transforms(image)
+        if self.transform is not None:
+            image = self.transform(image)
 
         return image, target
 
