@@ -232,12 +232,13 @@ class ImageNet(Dataset):
 
 
 class MSCOCO(Dataset):
-    def __init__(self, root, annFile, transform=None):
+    def __init__(self, root, annFile, transform=None, resize_img=None):
         self.root = root
         from pycocotools.coco import COCO
         self.coco = COCO(annFile)
         self.ids = list(sorted(self.coco.imgs.keys()))
         self.transform = transform
+        self.resize_img = resize_img
 
     def __getitem__(self, index):
         coco = self.coco
@@ -274,9 +275,12 @@ class MSCOCO(Dataset):
         # image, ratio, pad_info = resize_and_pad(image, self.resize_img)
         # target = scale_boxes(target, ratio, pad_info)
 
-        image, origin_size = image_to_patches(image, self.resize_img)
-        patchs_num = image.shape[0]
-        return image, target, origin_size, patchs_num
+        if self.resize_img is not None:
+            image, origin_size = image_to_patches(image, self.resize_img)
+            patchs_num = image.shape[0]
+            return image, target, origin_size, patchs_num
+        else:
+            return image, target
 
     def __len__(self):
         return len(self.ids)
