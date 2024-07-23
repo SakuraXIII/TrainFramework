@@ -256,18 +256,24 @@ class MSCOCO(Dataset):
 
         boxes = []
         labels = []
+        masks = []
+        iscrowd = []
+        areas = []
         for ann in anns:
             xmin, ymin, width, height = ann['bbox']  # COCO boxes 坐标格式为 xywh
             boxes.append([xmin, ymin, xmin + width, ymin + height])  # torchvision.model 中 Faster-RCNN 接受 xyxy 格式
             labels.append(ann['category_id'])
+            masks.append(self.coco.annToMask(ann))
+            iscrowd.append(ann.get('iscrowd', 0))
+            areas.append(ann['area'])
 
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.as_tensor(labels, dtype=torch.int64)
+        masks = torch.as_tensor(np.array(masks), dtype=torch.uint8)
+        iscrowd = torch.as_tensor(iscrowd, dtype=torch.int64)
+        areas = torch.as_tensor(areas, dtype=torch.float32)
 
-        target = {}
-        target["boxes"] = boxes
-        target["labels"] = labels
-        target["image_id"] = img_id
+        target = {"boxes": boxes, "labels": labels, "image_id": img_id, "masks": masks, "iscrowd": iscrowd, "area": areas}
 
         if self.transform is not None:
             image = self.transform(image)
