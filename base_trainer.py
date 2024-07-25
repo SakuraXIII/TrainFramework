@@ -189,10 +189,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
             self.pbar.total_eta = self.pbar.format_interval(((total / rate) * (self.epochs - (self.current_epoch + 1))) + (
                     (total - n) / rate) if rate and total else 0)
 
-            if isinstance(train_batch, (tuple, list)):
-                train_batch = [item.to(self.device) if isinstance(item, torch.Tensor) else item for item in train_batch]
-            else:
-                train_batch = train_batch.to(self.device)
+            train_batch = self._batch_to_cuda(train_batch)
             self.before_train_one_step(*args, **kwargs)
             self.train_one_step(train_idx, train_batch, *args, **kwargs)
             self.end_train_one_step(*args, **kwargs)
@@ -205,12 +202,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
     def val_one_epoch(self, *args, **kwargs):
         self.model.eval()
         for val_idx, val_batch in enumerate(self.val_loader):
-            if val_idx > len(self.val_loader) * 0.1:
-                return
-            if isinstance(val_batch, (tuple, list)):
-                val_batch = [item.to(self.device) for item in val_batch if isinstance(item, torch.Tensor)]
-            else:
-                val_batch = val_batch.to(self.device)
+            val_batch = self._batch_to_cuda(val_batch)
             self.before_val_one_step(*args, **kwargs)
             self.val_one_step(val_idx, val_batch, *args, **kwargs)
             self.end_val_one_step(*args, **kwargs)
@@ -223,10 +215,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
     def test_one_epoch(self, *args, **kwargs):
         self.model.eval()
         for test_idx, test_batch in enumerate(self.test_loader):
-            if isinstance(test_batch, (tuple, list)):
-                test_batch = [item.to(self.device) for item in test_batch if isinstance(item, torch.Tensor)]
-            else:
-                test_batch = test_batch.to(self.device)
+            test_batch = self._batch_to_cuda(test_batch)
             self.before_test_one_step(*args, **kwargs)
             self.test_one_step(test_idx, test_batch, *args, **kwargs)
             self.end_test_one_step(*args, **kwargs)
@@ -287,3 +276,18 @@ class BaseTrainer(TrainerHook, TrainerLogger):
             self.pbar.close()
             self.end_epoch(*args, **kwargs)
         self.end_test(*args, **kwargs)
+
+    def _batch_to_cuda(self, batch):
+        """遍历数据，将所有 cpu 上的 Tensor 转移到指定设备"""
+        if isinstance(batch, torch.Tensor):
+            return batch.to(self.device)
+        elif isinstance(batch, list):
+            return [self._batch_to_cuda(b) for b in batch]
+        elif isinstance(batch, tuple):
+            return tuple(self._batch_to_cuda(b) for b in batch)
+        elif isinstance(batch, set):
+            return {self._batch_to_cuda(b) for b in batch}
+        elif isinstance(batch, dict):
+            return {key: self._batch_to_cuda(value) for key, value in batch.items()}
+        else:
+            return batch
