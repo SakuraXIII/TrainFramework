@@ -34,58 +34,58 @@ printf = logging.info
 
 
 class TrainerHook:
-    def before_train(self):
+    def before_train(self, *args, **kwargs):
         pass
 
-    def before_epoch(self):
+    def before_epoch(self, *args, **kwargs):
         pass
 
-    def before_train_one_epoch(self):
+    def before_train_one_epoch(self, *args, **kwargs):
         pass
 
-    def before_train_one_step(self):
+    def before_train_one_step(self, *args, **kwargs):
         pass
 
-    def before_val_one_epoch(self):
+    def before_val_one_epoch(self, *args, **kwargs):
         pass
 
-    def before_val_one_step(self):
+    def before_val_one_step(self, *args, **kwargs):
         pass
 
-    def end_train_one_epoch(self):
+    def end_train_one_epoch(self, *args, **kwargs):
         pass
 
-    def end_train_one_step(self):
+    def end_train_one_step(self, *args, **kwargs):
         pass
 
-    def end_val_one_epoch(self):
+    def end_val_one_epoch(self, *args, **kwargs):
         pass
 
-    def end_val_one_step(self):
+    def end_val_one_step(self, *args, **kwargs):
         pass
 
-    def end_epoch(self):
+    def end_epoch(self, *args, **kwargs):
         pass
 
-    def end_train(self):
+    def end_train(self, *args, **kwargs):
         pass
 
-    def before_test(self):
+    def before_test(self, *args, **kwargs):
         pass
 
-    def before_test_one_epoch(self):
+    def before_test_one_epoch(self, *args, **kwargs):
         pass
 
-    def before_test_one_step(self):
+    def before_test_one_step(self, *args, **kwargs):
         pass
 
-    def end_test_one_step(self):
+    def end_test_one_step(self, *args, **kwargs):
         pass
 
-    def end_test_one_epoch(self):
+    def end_test_one_epoch(self, *args, **kwargs):
         pass
 
-    def end_test(self):
+    def end_test(self, *args, **kwargs):
         pass
 
 
@@ -150,15 +150,15 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         if resume_ckpt is not None:
             self.resume_ckpt = str(resume_ckpt)
 
-    def train(self, train_loader, val_loader, epochs):
+    def train(self, train_loader, val_loader, epochs, *args, **kwargs):
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.epochs = epochs
-        self.before_train()
+        self.before_train(*args, **kwargs)
         if hasattr(self, 'resume_ckpt'):
             self.load_resume_ckpt(self.resume_ckpt)
         for epoch in range(self.current_epoch, self.epochs):
-            self.before_epoch()
+            self.before_epoch(*args, **kwargs)
             # tqdm使用：https://blog.csdn.net/qq_41554005/article/details/117297861
             self.current_epoch = epoch
             self.pbar = tqdm(
@@ -169,18 +169,18 @@ class BaseTrainer(TrainerHook, TrainerLogger):
                 dynamic_ncols=True,
                 bar_format="{desc}{percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt}[{elapsed}{postfix},eta={remaining}]"
             )
-            self.before_train_one_epoch()
-            self.train_one_epoch()
-            self.end_train_one_epoch()
+            self.before_train_one_epoch(*args, **kwargs)
+            self.train_one_epoch(*args, **kwargs)
+            self.end_train_one_epoch(*args, **kwargs)
             self.pbar.close()
             if epoch % self.val_check_interval == 0:
-                self.before_val_one_epoch()
-                self.val_one_epoch()
-                self.end_val_one_epoch()
-            self.end_epoch()
-        self.end_train()
+                self.before_val_one_epoch(*args, **kwargs)
+                self.val_one_epoch(*args, **kwargs)
+                self.end_val_one_epoch(*args, **kwargs)
+            self.end_epoch(*args, **kwargs)
+        self.end_train(*args, **kwargs)
 
-    def train_one_epoch(self):
+    def train_one_epoch(self, *args, **kwargs):
         self.model.train()
         for train_idx, train_batch in enumerate(self.train_loader):
             rate = self.pbar.format_dict['rate']
@@ -193,16 +193,16 @@ class BaseTrainer(TrainerHook, TrainerLogger):
                 train_batch = [item.to(self.device) if isinstance(item, torch.Tensor) else item for item in train_batch]
             else:
                 train_batch = train_batch.to(self.device)
-            self.before_train_one_step()
-            self.train_one_step(train_idx, train_batch)
-            self.end_train_one_step()
+            self.before_train_one_step(*args, **kwargs)
+            self.train_one_step(train_idx, train_batch, *args, **kwargs)
+            self.end_train_one_step(*args, **kwargs)
             self.pbar.update(1)
 
-    def train_one_step(self, batch_idx, batch):
+    def train_one_step(self, batch_idx, batch, *args, **kwargs):
         raise NotImplementedError()
 
     @torch.no_grad()
-    def val_one_epoch(self):
+    def val_one_epoch(self, *args, **kwargs):
         self.model.eval()
         for val_idx, val_batch in enumerate(self.val_loader):
             if val_idx > len(self.val_loader) * 0.1:
@@ -211,28 +211,28 @@ class BaseTrainer(TrainerHook, TrainerLogger):
                 val_batch = [item.to(self.device) for item in val_batch if isinstance(item, torch.Tensor)]
             else:
                 val_batch = val_batch.to(self.device)
-            self.before_val_one_step()
-            self.val_one_step(val_idx, val_batch)
-            self.end_val_one_step()
+            self.before_val_one_step(*args, **kwargs)
+            self.val_one_step(val_idx, val_batch, *args, **kwargs)
+            self.end_val_one_step(*args, **kwargs)
 
     @torch.no_grad()
-    def val_one_step(self, batch_idx, batch):
+    def val_one_step(self, batch_idx, batch, *args, **kwargs):
         raise NotImplementedError()
 
     @torch.no_grad()
-    def test_one_epoch(self):
+    def test_one_epoch(self, *args, **kwargs):
         self.model.eval()
         for test_idx, test_batch in enumerate(self.test_loader):
             if isinstance(test_batch, (tuple, list)):
                 test_batch = [item.to(self.device) for item in test_batch if isinstance(item, torch.Tensor)]
             else:
                 test_batch = test_batch.to(self.device)
-            self.before_test_one_step()
-            self.test_one_step(test_idx, test_batch)
-            self.end_test_one_step()
+            self.before_test_one_step(*args, **kwargs)
+            self.test_one_step(test_idx, test_batch, *args, **kwargs)
+            self.end_test_one_step(*args, **kwargs)
 
     @torch.no_grad()
-    def test_one_step(self, batch_idx, batch):
+    def test_one_step(self, batch_idx, batch, *args, **kwargs):
         raise NotImplementedError()
 
     def load_ckpt(self, ckpt_path):
@@ -241,10 +241,10 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         ckpt = {k: v for k, v in ckpt.items() if not (('total_ops' in k) or ('total_params' in k))}
         self.model.load_state_dict(ckpt, True)
 
-    def load_resume_ckpt(self, ckpt_path):
+    def load_resume_ckpt(self, ckpt_path, *args, **kwargs):
         pass
 
-    def save_parameters(self, params):
+    def save_parameters(self, params, **kwargs):
         if not isinstance(params, dict):
             raise ValueError("params must be a dict")
         if not self.log_dir:
@@ -252,6 +252,7 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         params.update({'datetime': datetime.now().strftime('%Y/%m/%d %H:%M:%S')})
         if hasattr(self, 'resume_ckpt'):
             params.update({'resume_ckpt': self.resume_ckpt})
+        params.update(**kwargs)
         with open(os.path.join(self.log_dir, 'parameters.json'), 'w') as f:
             json.dump(params, f)
 
@@ -264,12 +265,12 @@ class BaseTrainer(TrainerHook, TrainerLogger):
         print('FLOPs = ' + flops)
         print('Params = ' + params)
 
-    def test(self, test_loader, epochs=1):
+    def test(self, test_loader, epochs=1, *args, **kwargs):
         self.test_loader = test_loader
         self.epochs = epochs
-        self.before_test()
+        self.before_test(*args, **kwargs)
         for epoch in range(0, self.epochs):
-            self.before_epoch()
+            self.before_epoch(*args, **kwargs)
             # tqdm使用：https://blog.csdn.net/qq_41554005/article/details/117297861
             self.current_epoch = epoch
             self.pbar = tqdm(
@@ -280,9 +281,9 @@ class BaseTrainer(TrainerHook, TrainerLogger):
                 dynamic_ncols=True,
                 bar_format="{desc}{percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt}[{elapsed}{postfix},eta={remaining}]"
             )
-            self.before_test_one_epoch()
-            self.test_one_epoch()
-            self.end_test_one_epoch()
+            self.before_test_one_epoch(*args, **kwargs)
+            self.test_one_epoch(*args, **kwargs)
+            self.end_test_one_epoch(*args, **kwargs)
             self.pbar.close()
-            self.end_epoch()
-        self.end_test()
+            self.end_epoch(*args, **kwargs)
+        self.end_test(*args, **kwargs)
