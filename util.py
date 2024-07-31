@@ -127,12 +127,12 @@ def plot_log(
         file_format: 图像的格式
         **kwargs: 画图的数据
     """
-    markers = markers if markers else ['.', '*', 'o', '+', 'x', 'v', ',']
+    markers = markers if markers else ['.', '*', 'v', '+', 'x', ',', 'o']
     linestyles = linestyles if linestyles else ['-', '--', '-.', ':']  # 只有这几种
     colors = colors if colors else ['#F27970', '#BB9727', '#14517C', '#32B897', '#05B9E2', '#8983BF', '#D8383A']
     plt.grid(True)
     if y is not None:
-        plt.plot(x, y, linewidth=2, linestyle=linestyles[0], color=colors[0], marker=markers[0])
+        plt.plot(x, y, linewidth=1.5, linestyle=linestyles[0], color=colors[0], marker=markers[0], markersize=4)
     else:
         for index, (key, value) in enumerate(kwargs.items()):
             index = int(index)
@@ -140,10 +140,11 @@ def plot_log(
                 range(len(value)) if x is None else x,
                 value,
                 label=rf"${key}$",  # 启用 Latex 渲染，文本中的空格会被忽略，解决方法："a bc" -> "a\\bc"，即空格用 "\\" 代替
-                linewidth=2,
+                linewidth=1.5,
                 linestyle=linestyles[index % len(linestyles)],
                 color=colors[index % len(colors)],
-                marker=markers[index % len(markers)]
+                marker=markers[index % len(markers)],
+                markersize=4
             )
     plt.title(title) if title is not None else ...
     plt.xlabel(f"${xlabel}$") if xlabel is not None else ...
@@ -153,6 +154,7 @@ def plot_log(
     plt.xlim(x_range) if x_range is not None else ...
     plt.ylim(y_range) if y_range is not None else ...
     plt.legend(fontsize=8)
+    plt.tight_layout()
     if path is None:
         plt.show()
     elif Path(path).suffix == '':  # 目录路径
@@ -190,8 +192,7 @@ def get_optimizer(optimizer, parameters, lr=0.0001):
 
 def check_dir_exist(*directorys):
     for directory in directorys:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        Path(directory).mkdir(parents=True, exist_ok=True)
 
 
 def sigmoid(x):
@@ -371,7 +372,7 @@ class Timer:
 
 
 class AverageMeter:
-    """Compute running average."""
+    """指标计数器"""
 
     def __init__(self):
         self._val = 0.
@@ -381,10 +382,12 @@ class AverageMeter:
 
     @property
     def val(self):
+        """最新记录的值"""
         return round(self._val, 6)
 
     @property
     def avg(self):
+        """均值，精确 6 位"""
         return round(self._avg, 6)
 
     def update(self, val, n=1):
@@ -400,3 +403,56 @@ class AverageMeter:
         self._avg = 0.
         self._sum = 0.
         self._count = 0.
+
+
+class FeatureHook():
+    def __init__(self, module):
+        module.register_forward_hook(self.forward_attach)
+        module.register_backward_hook(self.backward_attach)
+
+    def forward_attach(self, module, input, output):
+        self.forward_feature = output.cpu()
+
+    def backward_attach(self, module, grad_in, grad_out):
+        self.backward_grad = grad_out.cpu()
+
+
+class GradCAM:
+    def __init__(self, model, target_layer):
+        self.model = model
+        self.target_layer = target_layer
+        self.gradients = None
+        self.activations = None
+        self.hook()
+
+    def hook(self):
+        def forward_hook(module, input, output):
+            self.activations = output
+
+        def backward_hook(module, grad_in, grad_out):
+            self.gradients = grad_out[0]
+
+        self.target_layer.register_forward_hook(forward_hook)
+        self.target_layer.register_backward_hook(backward_hook)
+
+    def generate_cam(self, input_image, target_class):
+        output = self.model(input_image)
+        self.model.zero_grad()
+        target = output[0][target_class]
+        target.backward()
+
+        gradients = self.gradients.cpu().data.numpy()[0]
+        activations = self.activations.cpu().data.numpy()[0]
+        weights = np.mean(gradients, axis=(1, 2))
+        cam = np.zeros(activations.shape[1:], dtype=np.float32)
+
+        for i, w in enumerate(weights):
+            cam += w * activations[i]
+
+        cam = np.maximum(cam, 0)
+        cam = cam - np.min(cam)
+        cam = cam / np.max(cam)
+        import cv2
+        cam = cv2.resize(cam, (input_image.shape[2], input_image.shape[3]))
+
+        return cam
