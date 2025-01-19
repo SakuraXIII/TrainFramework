@@ -10,6 +10,7 @@ import random
 from pathlib import Path
 from typing import Any, Dict, Tuple, List
 
+import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
@@ -213,7 +214,7 @@ class ImageNet(Dataset):
         self.transform = transform
         self.image_set = image_set
         self.image_files = Path(root, "Data", "CLS-LOC")
-        self.image_idx = Path(root, "ImageSets", "CLS-LOC")
+        self.image_idx = Path(root, "Annotations", "CLS-LOC")
         with open(self.image_idx / f"{image_set}.txt", 'r') as f:
             lines = f.readlines()
             self.image_path = [line.strip() for line in lines]
