@@ -157,6 +157,7 @@ def plot_log(
     plt.tight_layout()
     if path is None:
         plt.show()
+    # Path().is_dir() or .is_file() 要求路径必须真实存在才有效
     elif Path(path).suffix == '':  # 目录路径
         plt.savefig(Path(path, title + f'.{file_format}'), dpi=dpi)
     else:  # 文件路径
@@ -192,7 +193,9 @@ def get_optimizer(optimizer, parameters, lr=0.0001):
 
 def check_dir_exist(*directorys):
     for directory in directorys:
-        Path(directory).mkdir(parents=True, exist_ok=True)
+        if ((tmp := Path(directory)).suffix):
+            directory = tmp.parent
+        directory.mkdir(parents=True, exist_ok=True)
 
 
 def sigmoid(x):
