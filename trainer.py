@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from config.config import Config
 from utils.common import init_logger
-from utils.monitor import TrainMonitor, lr_provider, gpu_mem_provider
+from utils.monitor import TrainMonitor, lr_provider, gpu_mem_provider, Status
 
 logger = init_logger()
 
@@ -173,7 +173,7 @@ class BaseTrainer(TrainerHook):
             self.monitor = monitor
             self.monitor.register_provider(lambda: lr_provider(optimizer))
             self.monitor.register_provider(lambda: gpu_mem_provider(self.device))
-            self.monitor.register_provider(lambda: {"total_epoch": self.epochs})
+            self._update_metrics(status=Status.INIT, total_epoch=self.epochs)
 
         if val_loader is not None:
             self.val_loader = val_loader
@@ -185,7 +185,7 @@ class BaseTrainer(TrainerHook):
         for epoch in range(self.current_epoch, self.epochs):
             self.before_epoch(*args, **kwargs)
             self.current_epoch = epoch
-            self.monitor.update(epoch=epoch)
+            self._update_metrics(epoch=epoch, status=Status.TRAIN)
             # tqdm使用：https://blog.csdn.net/qq_41554005/article/details/117297861
             self.pbar = tqdm(
                 total=len(self.train_loader),
@@ -205,6 +205,7 @@ class BaseTrainer(TrainerHook):
                 self.end_val_one_epoch(*args, **kwargs)
             self.end_epoch(*args, **kwargs)
         self.end_train(*args, **kwargs)
+        self._update_metrics(status=Status.SUCCESS)
 
     def train_one_epoch(self, *args, **kwargs):
         self.model.train()
@@ -264,6 +265,7 @@ class BaseTrainer(TrainerHook):
         pass
 
     def save_model(self, **kwargs):
+        # TODO
         pd.save()
 
     def compute_cost(self, inputs_shape: list):
@@ -318,3 +320,7 @@ class BaseTrainer(TrainerHook):
         else:
             logger.warning("{} 不可用，使用{}".format(device, final_device))
         return pd.set_device(final_device)
+
+    def _update_metrics(self, **kwargs):
+        if 'monitor' in self and isinstance(self.monitor, TrainMonitor):
+            self.monitor.update(**kwargs)

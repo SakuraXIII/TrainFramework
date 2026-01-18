@@ -5,8 +5,8 @@
 # @File    : monitor.py
 
 import threading
-# monitor/core.py
 from dataclasses import dataclass, replace
+from enum import StrEnum
 from typing import Dict, Any, Callable, Optional, List
 
 import paddle as pd
@@ -35,15 +35,23 @@ def gpu_mem_provider(device) -> Dict[str, Any]:
     return {}
 
 
+class Status(StrEnum):
+    FAILED = "失败"
+    INIT = "初始化中"
+    TRAIN = "训练中"
+    SUCCESS = "成功"
+
+
 @dataclass
 class TrainState:
+    status: Status = Status.INIT  # -1: failed 0: init 1: training 2: success
     epoch: int = 0
     total_epoch: int = 0
     batch_idx: int = 0
     learning_rate: float = 0.0
     loss: Optional[float] = None
     accuracy: Optional[float] = None
-    # ✅ 后续扩展字段：只需在此添加，无需改逻辑
+    # 后续扩展字段需在此声明
     grad_norm: Optional[float] = None
     gpu_memory_mb: Optional[int] = None
 
@@ -60,8 +68,9 @@ class TrainMonitor:
             # replace: 专为 @dataclass 类设计，轻量拷贝（浅拷贝）返回不可变新实例
             self._state = replace(self._state, **kwargs)
 
-    def snapshot(self) -> TrainState:
+    def get_snapshot(self) -> TrainState:
         with self._lock:
+            self.refresh_snapshot()
             return replace(self._state)  # immutable copy 不可变拷贝
 
     def register_provider(self, provider: Callable[[], Dict[str, Any]]):
@@ -69,7 +78,7 @@ class TrainMonitor:
         self._providers.append(provider)
 
     def refresh_snapshot(self):
-        """合并所有 provider 数据到快照（建议在 on_batch_end 中调用）"""
+        """合并所有 provider 数据到快照"""
         data = {}
         for p in self._providers:
             try:
@@ -78,9 +87,12 @@ class TrainMonitor:
                 print(f"[Monitor] Provider error: {e}")
         self.update(**data)
 
-    def on_batch_end(self, *args, **kwargs):
-        self.refresh_snapshot()
-        for cb in self._callbacks:
-            cb(self.snapshot())
+    def clear_state(self):
+        self._state = TrainState()
+
+    def reset_all(self):
+        self._state = TrainState()
+        self._callbacks.clear()
+        self._providers.clear()
 
     # 其他钩子：on_epoch_start/end, on_train_start/end...
