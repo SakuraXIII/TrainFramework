@@ -5,15 +5,20 @@
 # @File    : monitor.py
 
 import threading
-from dataclasses import dataclass, replace
-from enum import StrEnum
+from dataclasses import dataclass, replace, asdict
+from enum import Enum
 from typing import Dict, Any, Callable, Optional, List
 
 import paddle as pd
 from paddle.optimizer import Optimizer
 
+from utils.common import init_logger
+
+logger = init_logger()
+
 
 # ------------------------------------------------ #
+
 
 def lr_provider(optimizer: Optimizer) -> Dict[str, Any]:
     return {"learning_rate": optimizer.get_lr() or 0.0}
@@ -29,22 +34,25 @@ def grad_norm_provider(model) -> Dict[str, Any]:
 
 
 def gpu_mem_provider(device) -> Dict[str, Any]:
-    if len(pd.device.get_device()) > 1:
+    if pd.device.get_device() is not 'cpu':
         mem = pd.device.memory_allocated(device) / 1024 ** 2
         return {"gpu_memory_mb": round(mem, 1)}
     return {}
 
 
-class Status(StrEnum):
+class Status(Enum):
     FAILED = "失败"
     INIT = "初始化中"
     TRAIN = "训练中"
     SUCCESS = "成功"
 
+    def to_json(self):
+        return self.value
+
 
 @dataclass
 class TrainState:
-    status: Status = Status.INIT  # -1: failed 0: init 1: training 2: success
+    status: Status = Status.INIT
     epoch: int = 0
     total_epoch: int = 0
     batch_idx: int = 0
@@ -54,6 +62,20 @@ class TrainState:
     # 后续扩展字段需在此声明
     grad_norm: Optional[float] = None
     gpu_memory_mb: Optional[int] = None
+
+    def to_dict(self):
+        """将对象转换为字典，枚举转为其值"""
+        d = asdict(self)
+        d['status'] = self.status.value  # 或者用 self.color.name
+        return d
+
+    @classmethod
+    def from_dict(cls, data):
+        """从字典创建对象，将值转换回枚举"""
+        status = data.pop('status')
+        # 假设 color_value 是枚举的 value，如果是 name 则用 Color[color_value]
+        status_enum = Status(status)
+        return cls(**data, status=status_enum)
 
 
 class TrainMonitor:
@@ -84,7 +106,7 @@ class TrainMonitor:
             try:
                 data.update(p())
             except Exception as e:
-                print(f"[Monitor] Provider error: {e}")
+                logger.error(f"[Monitor] Provider error: {e}")
         self.update(**data)
 
     def clear_state(self):

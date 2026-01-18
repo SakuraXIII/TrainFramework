@@ -185,7 +185,7 @@ class BaseTrainer(TrainerHook):
         for epoch in range(self.current_epoch, self.epochs):
             self.before_epoch(*args, **kwargs)
             self.current_epoch = epoch
-            self._update_metrics(epoch=epoch, status=Status.TRAIN)
+            self._update_metrics(epoch=epoch + 1, status=Status.TRAIN)
             # tqdm使用：https://blog.csdn.net/qq_41554005/article/details/117297861
             self.pbar = tqdm(
                 total=len(self.train_loader),
@@ -310,17 +310,18 @@ class BaseTrainer(TrainerHook):
             return batch
 
     @staticmethod
-    def _check_device_available(device):
+    def _check_device_available(device: str):
         final_device = 'cpu'
-        if device is None or len(device) == 0:
-            logger.warning("未指定设备，默认使用{}".format(final_device))
-        elif device in pd.device.get_available_device() or device == 'cpu':
-            final_device = device
-            logger.info("使用{}设备".format(final_device))
+        if not device:
+            logger.warning("未指定设备，默认使用{}".format(pd.device.get_device()))
         else:
-            logger.warning("{} 不可用，使用{}".format(device, final_device))
-        return pd.set_device(final_device)
+            final_device = device
+        try:
+            return pd.set_device(final_device)
+        except ValueError as e:
+            logger.warning("{} 不可用，使用{}: {}".format(device, final_device, e.args))
+            return pd.set_device('cpu')
 
     def _update_metrics(self, **kwargs):
-        if 'monitor' in self and isinstance(self.monitor, TrainMonitor):
+        if hasattr(self, 'monitor') and isinstance(self.monitor, TrainMonitor):
             self.monitor.update(**kwargs)
