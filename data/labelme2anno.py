@@ -13,7 +13,7 @@ from shapely.geometry import Polygon
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
-    parser.add_argument('--task', choices=['det', 'seg'])
+    parser.add_argument('--task', choices=['det', 'seg'], default='det')
     parser.add_argument('input_dir', help='input annotated directory')
     parser.add_argument('output_dir', help='output annotated directory')
     return parser.parse_args()
@@ -22,6 +22,7 @@ def parse_args():
 def polygon_area(poly_points):
     """输入: [[x1,y1], [x2,y2], ..., [xn,yn]] → 返回像素面积（float）"""
     if len(poly_points) < 3:
+        raise ValueError("坐标点小于3，无法构成闭合图形。（labelme不用使用rectange）")
         return 0.0
     # 确保顺时针 or 逆时针？Shapely 自动处理有向面积 → 取绝对值
     try:
@@ -162,8 +163,10 @@ def main(args):
                 det = {'det': {"bbox": [], "cls": [], "area": []}}
                 for item in data["shapes"]:
                     det["det"]["cls"].append(item["label"])
-                    det["det"]["bbox"].append(get_bbox_loc(item["points"]))  # xyxy
-                    det["det"]["area"].append(polygon_area(item["points"]))
+                    xyxy = get_bbox_loc(item["points"])
+                    det["det"]["bbox"].append(xyxy)  # xyxy
+                    area = (xyxy[2] - xyxy[0]) * (xyxy[3] - xyxy[1])
+                    det["det"]["area"].append(round(area, 2))
                 obj = base_obj | det
             elif args.task == 'seg':
                 seg = {'seg': {"mask_path": "", "area": -1}}
@@ -175,13 +178,15 @@ def main(args):
                     class_name_to_id, color_map
                 )
                 seg['seg']['mask_path'] = base_obj['id'] + '.png'
-                det["seg"]["area"].append(polygon_area(item["points"]))
+                # 分割任务的labelme标注请使用polygon多边形，至少大于2个点
+                det["seg"]["area"].append(round(polygon_area(item["points"]), 2))
                 obj = base_obj | seg
             else:
                 raise ValueError("task 只能为 [det,seg]，实际为: {}".format(args.task))
         anno_list.append({obj['id']: obj})
     
     # ===================== 批量写入json标注文件 =======================
+    print("写入annotation json")
     for anno in anno_list:
         for k, v in anno.items():
             with open(os.path.join(output_dir, 'annotations', (k + '.json')), 'w') as f:
