@@ -62,7 +62,7 @@ class BaseDataset(Dataset):
         self.images_path = self.root / "images"
         self.annos_path = self.root / "annotations"
         self.data_list = list(str())  # 在实现类中初始化具体的数据文件
-        self.transforms = T.Compose(transforms)
+        self.transforms = T.Compose(transforms) if transforms else None
         self.num_classes = num_classes
         self.cls_to_id = dict()
         
@@ -100,12 +100,13 @@ class BaseDataset(Dataset):
     
     @staticmethod
     def collect_fn(batch):
+        # batch 为 batch_size 个 __getitem__ 返回的数据: (img,target)
         raise NotImplementedError("子类需要自定义DataLoader collect_fn时，需要实现该方法")
 
 
 class ClsDataset(BaseDataset):
     
-    def __init__(self, mode: str, dataset_root: Union[str, Path], transforms, num_classes) -> None:
+    def __init__(self, mode: str, dataset_root: Union[str, Path], transforms: List, num_classes: int) -> None:
         super().__init__(mode, dataset_root, transforms, num_classes)
         self.cls_list = []
         for item in self.data_list:
@@ -125,24 +126,24 @@ class ClsDataset(BaseDataset):
         if img is None:
             raise ValueError('无法读取图像数据，检查文件是否存在或路径包含中文: {}!'.format(image_path))
         # img = img.astype('float32')
-        img = self.transforms(img)
+        if self.transforms:
+            img = self.transforms(img)
         target = pd.tensor(class_id, dtype="int8")
         return img, target
 
 
 class DetDataset(BaseDataset):
+    """检测数据集加载，transforms不建议使用旋转增强"""
     
-    def __init__(self, mode: str, dataset_root: Union[str, Path], transforms: List, num_classes) -> None:
+    def __init__(self, mode: str, dataset_root: Union[str, Path], transforms: List, num_classes: int) -> None:
         super().__init__(mode, dataset_root, transforms, num_classes)
         self.bbox_list = []
         for item in self.data_list:
             json_path = os.path.join(self.annos_path, item + '.json')
             obj = read_json_fromfile(json_path)
             if 'det' in obj:  # 'det': { 'bbox': [[]],'cls': [] }
-                tmp = obj['det']
-                assert 'cls' in tmp and 'bbox' in tmp, "det 需要包含 `bbox` 坐标属性与对应的 `cls` 类别属性"
-                cbi = zip(tmp.get('cls', -1), tmp['bbox'])
-                self.bbox_list.append((obj['image_name'], tuple(cbi)))
+                assert 'cls' in obj['det'] and 'bbox' in obj['det'], "det 需要包含 `bbox` 坐标属性与对应的 `cls` 类别属性"
+                self.bbox_list.append((obj['image_name'], obj['det']))
             else:
                 raise KeyError("json标注文件未包含`det`坐标属性：{}".format(json_path))
         
@@ -154,12 +155,20 @@ class DetDataset(BaseDataset):
         img = cv2.imread(image_path, cv2.IMREAD_COLOR_RGB)
         if img is None:
             raise ValueError('无法读取图像数据，检查文件是否存在或路径包含中文: {}!'.format(image_path))
-        img = self.transforms(img)
-        return img, det_anno[0], det_anno[1]
+        if self.transforms:
+            img = self.transforms(img)
+            # target = self.transforms(det_anno)
+        return img, det_anno
     
     @staticmethod
     def collect_fn(batch):
-        return tuple(zip(*batch))
+        imgs = []
+        target = []
+        for (img, det_anno) in batch:
+            imgs.append(img)
+            target.append(det_anno)
+        imgs = pd.stack(imgs)
+        return imgs, target
 
 
 class SegDataset(BaseDataset):

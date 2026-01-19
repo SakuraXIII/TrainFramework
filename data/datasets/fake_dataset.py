@@ -2,7 +2,6 @@ import random
 
 import paddle as pd
 from paddle.io import Dataset
-import paddle.vision.transforms as T
 from paddle.io.dataloader.dataset import _T
 
 
@@ -33,7 +32,7 @@ class FakeDetDataset(Dataset):
     def __getitem__(self, idx: int) -> _T:
         img = pd.randn(3, *self.img_size)
         count = random.randint(0, 7)
-        labels = pd.randint(0, self.num_class, [count, ])
+        labels = pd.randint(0, self.num_class, [count, 1])
         b = []
         for _ in range(count):
             x1, x2, y1, y2 = (random.randint(0, self.img_size[0]),
@@ -47,3 +46,13 @@ class FakeDetDataset(Dataset):
     
     def __len__(self) -> int:
         return self.num_sizes
+    
+    @staticmethod
+    def collect_fn(batch):
+        imgs = []
+        target = []
+        for (img, det_anno) in batch:
+            imgs.append(img)
+            target.append(det_anno)
+        imgs = pd.stack(imgs)
+        return imgs, target
